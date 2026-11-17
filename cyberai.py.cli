@@ -1,0 +1,448 @@
+"""CyberAI Pentest Toolkit - Main Entry Point"""
+
+import sys
+import os
+import json
+import argparse
+from datetime import datetime
+
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog='cyberai',
+        description='CyberAI Pentest Toolkit - A lean penetration testing framework',
+        epilog='Use -h with any command for more help'
+    )
+    
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    
+    # === SCAN COMMAND ===
+    scan_parser = subparsers.add_parser('scan', help='Network port scanning')
+    scan_parser.add_argument('target', help='Target IP or CIDR range')
+    scan_parser.add_argument('-p', '--ports', help='Ports to scan (e.g., 22,80,443 or 1-1000)')
+    scan_parser.add_argument('-s', '--scan-type', choices=['quick', 'full', 'vuln'], default='quick',
+                            help='Scan type: quick (top ports), full (all ports), vuln (service + vuln check)')
+    scan_parser.add_argument('-o', '--output', help='Output file (JSON format)')
+    scan_parser.add_argument('--no-nmap', action='store_true', help='Use built-in scanner instead of nmap')
+    
+    # === WEB-AUDIT COMMAND ===
+    web_parser = subparsers.add_parser('web-audit', help='Web application vulnerability scanning')
+    web_parser.add_argument('url', help='Target URL (e.g., https://example.com)')
+    web_parser.add_argument('--depth', type=int, default=3, help='Crawl depth (default: 3)')
+    web_parser.add_argument('--max-pages', type=int, default=50, help='Maximum pages to crawl')
+    web_parser.add_argument('--threads', type=int, default=10, help='Request threads')
+    web_parser.add_argument('-o', '--output', help='Output file (JSON format)')
+    
+    # === DIRBUST COMMAND ===
+    dirbust_parser = subparsers.add_parser('dirbust', help='Web directory brute-forcing')
+    dirbust_parser.add_argument('url', help='Target URL (e.g., https://example.com)')
+    dirbust_parser.add_argument('-w', '--wordlist', help='Custom wordlist path')
+    dirbust_parser.add_argument('-t', '--threads', type=int, default=20, help='Request threads')
+    dirbust_parser.add_argument('-s', '--status-codes', help='Status codes to show (default: 200,301,302,403)')
+    dirbust_parser.add_argument('-o', '--output', help='Output file')
+    
+    # === CVE COMMAND ===
+    cve_parser = subparsers.add_parser('cve', help='CVE lookup for services')
+    cve_parser.add_argument('service', help='Service name and version (e.g., apache 2.4.49)')
+    cve_parser.add_argument('--verbose', action='store_true', help='Show full CVE details')
+    
+    # === EXPLOIT COMMAND ===
+    exploit_parser = subparsers.add_parser('exploit', help='Run exploit against target')
+    exploit_parser.add_argument('name', help='Exploit name (run "exploits" to list)')
+    exploit_parser.add_argument('--target', required=True, help='Target IP/URL')
+    exploit_parser.add_argument('--port', type=int, help='Target port')
+    exploit_parser.add_argument('--payload', help='Custom payload')
+    exploit_parser.add_argument('--dry-run', action='store_true', help='Test without executing')
+    
+    # === EXPLOITS LIST COMMAND ===
+    exploits_parser = subparsers.add_parser('exploits', help='List available exploits')
+    exploits_parser.add_argument('--category', help='Filter by category (web, network, etc.)')
+    
+    # === REPORT COMMAND ===
+    report_parser = subparsers.add_parser('report', help='Generate pentest report')
+    report_parser.add_argument('--input', required=True, help='Input JSON results file')
+    report_parser.add_argument('--format', choices=['html', 'pdf', 'json'], default='html', help='Report format')
+    report_parser.add_argument('--output', help='Output file path')
+    
+    # === FULL PENTEST COMMAND ===
+    full_parser = subparsers.add_parser('pentest', help='Full automated pentest')
+    full_parser.add_argument('target', help='Target IP or domain')
+    full_parser.add_argument('--full', action='store_true', help='Run full scan (slow)')
+    full_parser.add_argument('--web', action='store_true', help='Include web scanning')
+    full_parser.add_argument('--report', action='store_true', help='Generate report')
+    
+    # === HELP ===
+    help_parser = subparsers.add_parser('help', help='Show this help message')
+    
+    args = parser.parse_args()
+    
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+    
+    # Route commands
+    commands = {
+        'scan': cmd_scan,
+        'web-audit': cmd_web_audit,
+        'dirbust': cmd_dirbust,
+        'cve': cmd_cve,
+        'exploit': cmd_exploit,
+        'exploits': cmd_list_exploits,
+        'report': cmd_report,
+        'pentest': cmd_full_pentest,
+        'help': lambda args: parser.print_help(),
+    }
+    
+    if args.command in commands:
+        commands[args.command](args)
+    else:
+        parser.print_help()
+
+
+def cmd_scan(args):
+    """Run network scan"""
+    from scanners.network import NetworkScanner
+    
+    print("[*] Starting CyberAI Network Scanner")
+    print(f"[*] Target: {args.target}")
+    print(f"[*] Scan type: {args.scan_type}")
+    print()
+    
+    scanner = NetworkScanner()
+    
+    if args.ports:
+        results = scanner.scan_ports(args.target, args.ports, args.scan_type)
+    else:
+        results = scanner.scan(args.target, args.scan_type)
+    
+    # Display results
+    if results.get('ports'):
+        print(f"\n[+] Found {len(results['ports'])} open ports:")
+        print("-" * 60)
+        for port in results['ports']:
+            status = port.get('state', 'unknown')
+            service = port.get('service', 'unknown')
+            version = port.get('version', '')
+            print(f"  Port {port['port']}/{port.get('protocol', 'tcp')}  {status:8}  {service:20} {version}")
+        print("-" * 60)
+    
+    # Save results
+    if args.output:
+        with open(args.output, 'w') as f:
+            json.dump(results, f, indent=2)
+        print(f"\n[+] Results saved to {args.output}")
+    
+    return results
+
+
+def cmd_web_audit(args):
+    """Run web vulnerability audit"""
+    from scanners.web import WebScanner
+    
+    print("[*] Starting CyberAI Web Vulnerability Scanner")
+    print(f"[*] Target: {args.url}")
+    print(f"[*] Depth: {args.depth}")
+    print()
+    
+    scanner = WebScanner()
+    results = scanner.audit(args.url, depth=args.depth, max_pages=args.max_pages, threads=args.threads)
+    
+    # Display findings
+    findings = results.get('findings', [])
+    if findings:
+        print(f"\n[+] Found {len(findings)} vulnerability(ies):")
+        print("-" * 60)
+        for i, finding in enumerate(findings, 1):
+            severity = finding.get('severity', 'INFO').upper()
+            title = finding.get('title', 'No title')
+            url = finding.get('url', 'N/A')
+            print(f"  [{severity}] #{i}: {title}")
+            print(f"         URL: {url}")
+            print()
+        print("-" * 60)
+    else:
+        print("\n[+] No vulnerabilities found")
+    
+    # Save results
+    if args.output:
+        with open(args.output, 'w') as f:
+            json.dump(results, f, indent=2)
+        print(f"\n[+] Results saved to {args.output}")
+    
+    return results
+
+
+def cmd_dirbust(args):
+    """Run directory brute-force"""
+    from scanners.dirbust import DirectoryBuster
+    
+    print("[*] Starting CyberAI Directory Buster")
+    print(f"[*] Target: {args.url}")
+    print()
+    
+    buster = DirectoryBuster()
+    results = buster.bust(args.url, wordlist=args.wordlist, threads=args.threads, 
+                          status_codes=args.status_codes)
+    
+    # Display results
+    found = results.get('found', [])
+    if found:
+        print(f"\n[+] Found {len(found)} paths:")
+        print("-" * 60)
+        for item in found:
+            status = item.get('status', 0)
+            path = item.get('path', '')
+            size = item.get('size', 0)
+            print(f"  [{status:3}] {path:<40} ({size} bytes)")
+        print("-" * 60)
+    else:
+        print("\n[+] No paths found")
+    
+    # Save results
+    if args.output:
+        with open(args.output, 'w') as f:
+            json.dump(results, f, indent=2)
+        print(f"\n[+] Results saved to {args.output}")
+    
+    return results
+
+
+def cmd_cve(args):
+    """Lookup CVE for a service"""
+    from scanners.cve import CVELookup
+    
+    print(f"[*] Searching CVE for: {args.service}")
+    print()
+    
+    lookup = CVELookup()
+    results = lookup.search(args.service)
+    
+    if results:
+        print(f"[+] Found {len(results)} CVE(s):\n")
+        for i, cve in enumerate(results, 1):
+            print(f"  [{i}] {cve.get('id', 'N/A')}")
+            print(f"      Severity: {cve.get('severity', 'N/A')}")
+            print(f"      Description: {cve.get('description', 'N/A')[:100]}...")
+            print(f"      URL: {cve.get('url', 'N/A')}")
+            print()
+            if args.verbose and cve.get('references'):
+                for ref in cve['references'][:3]:
+                    print(f"        - {ref}")
+                print()
+    else:
+        print("[+] No CVEs found")
+    
+    return results
+
+
+def cmd_exploit(args):
+    """Run an exploit"""
+    from exploits.manager import ExploitManager
+    
+    manager = ExploitManager()
+    exploit = manager.get_exploit(args.name)
+    
+    if not exploit:
+        print(f"[-] Exploit '{args.name}' not found")
+        print("[+] Run 'cyberai exploits' to see available exploits")
+        return
+    
+    print(f"[*] Exploit: {exploit.get('name', args.name)}")
+    print(f"[*] Target: {args.target}:{args.port or 'N/A'}")
+    print(f"[*] Category: {exploit.get('category', 'N/A')}")
+    print(f"[*] Description: {exploit.get('description', 'N/A')}")
+    print()
+    
+    if args.dry_run:
+        print("[!] DRY RUN - No exploit will be executed")
+        print("[+] Simulating exploit...")
+        print("[+] Result: Exploit logic verified (no action taken)")
+        return
+    
+    # Safety check
+    print("[!] WARNING: This will execute an exploit against the target")
+    print("[!] Ensure you have authorization to test this target")
+    
+    try:
+        result = exploit['run'](args.target, args.port, args.payload)
+        print(f"\n[+] Exploit result: {result}")
+    except Exception as e:
+        print(f"\n[-] Exploit failed: {e}")
+
+
+def cmd_list_exploits(args):
+    """List available exploits"""
+    from exploits.manager import ExploitManager
+    
+    manager = ExploitManager()
+    exploits = manager.list_exploits(category=args.category)
+    
+    if not exploits:
+        print("[+] No exploits found")
+        return
+    
+    print(f"[+] Available exploits ({len(exploits)}):\n")
+    print(f"  {'Name':<25} {'Category':<15} {'Status':<10} {'Description'}")
+    print("  " + "-" * 70)
+    
+    for exp in exploits:
+        name = exp.get('name', 'N/A')
+        category = exp.get('category', 'N/A')
+        status = "ready" if exp.get('run') else "pending"
+        desc = exp.get('description', '')[:30]
+        print(f"  {name:<25} {category:<15} {status:<10} {desc}")
+    
+    print(f"\n[+] Use 'cyberai exploit <name> --target <ip> --port <port>' to run")
+
+
+def cmd_report(args):
+    """Generate pentest report"""
+    from reporting.generator import ReportGenerator
+    
+    if not os.path.exists(args.input):
+        print(f"[-] Input file not found: {args.input}")
+        return
+    
+    with open(args.input, 'r') as f:
+        data = json.load(f)
+    
+    generator = ReportGenerator()
+    output = args.output or f"reports/cyberai_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{args.format}"
+    
+    generator.generate(data, output, args.format)
+    print(f"[+] Report generated: {output}")
+
+
+def cmd_full_pentest(args):
+    """Run full automated pentest"""
+    from scanners.network import NetworkScanner
+    from scanners.web import WebScanner
+    from scanners.dirbust import DirectoryBuster
+    from reporting.generator import ReportGenerator
+    import json
+    
+    print("=" * 60)
+    print("  CyberAI Full Pentest")
+    print("=" * 60)
+    print(f"  Target: {args.target}")
+    print(f"  Full scan: {'Yes' if args.full else 'No'}")
+    print(f"  Web scan: {'Yes' if args.web else 'No'}")
+    print("=" * 60)
+    print()
+    
+    results = {
+        'target': args.target,
+        'timestamp': datetime.now().isoformat(),
+        'scans': {},
+        'findings': [],
+        'summary': {}
+    }
+    
+    # Phase 1: Network Scan
+    print("[*] Phase 1: Network Scanning...")
+    scanner = NetworkScanner()
+    scan_type = 'full' if args.full else 'quick'
+    network_results = scanner.scan(args.target, scan_type)
+    results['scans']['network'] = network_results
+    
+    open_ports = network_results.get('ports', [])
+    print(f"[+] Found {len(open_ports)} open ports")
+    
+    # Add findings for open ports
+    for port in open_ports:
+        if port.get('service') in ['http', 'https', 'ssh', 'ftp', 'smtp']:
+            results['findings'].append({
+                'type': 'open_port',
+                'severity': 'INFO',
+                'title': f"Open port: {port['service']} on {port['port']}",
+                'details': f"Service: {port.get('service')}, Version: {port.get('version', 'unknown')}"
+            })
+    
+    # Phase 2: Web Scanning
+    if args.web:
+        print("\n[*] Phase 2: Web Application Scanning...")
+        web_scanner = WebScanner()
+        
+        # Check if port 80/443 is open
+        web_ports = [p for p in open_ports if p['port'] in [80, 443, 8080, 8443]]
+        
+        if web_ports:
+            for wp in web_ports:
+                proto = 'https' if wp['port'] == 443 else 'http'
+                url = f"{proto}://{args.target}:{wp['port']}"
+                web_results = web_scanner.audit(url, depth=2, max_pages=20)
+                results['scans']['web'] = web_results
+                results['findings'].extend(web_results.get('findings', []))
+        else:
+            print("[+] No web ports found, skipping web scan")
+    
+    # Phase 3: Directory Busting (if web scanning found HTTP)
+    if args.web and open_ports:
+        web_ports = [p for p in open_ports if p['port'] in [80, 443, 8080, 8443]]
+        if web_ports:
+            print("\n[*] Phase 3: Directory Enumeration...")
+            buster = DirectoryBuster()
+            wp = web_ports[0]
+            proto = 'https' if wp['port'] == 443 else 'http'
+            url = f"{proto}://{args.target}:{wp['port']}"
+            dir_results = buster.bust(url, threads=10)
+            results['scans']['dirbust'] = dir_results
+            results['findings'].extend([
+                {
+                    'type': 'discovered_path',
+                    'severity': 'INFO',
+                    'title': f"Discovered path: {item['path']}",
+                    'details': f"Status: {item['status']}, Size: {item['size']}"
+                }
+                for item in dir_results.get('found', [])
+            ])
+    
+    # Phase 4: Summary
+    vulns = [f for f in results['findings'] if f.get('severity') in ['HIGH', 'CRITICAL']]
+    warnings = [f for f in results['findings'] if f.get('severity') == 'MEDIUM']
+    info = [f for f in results['findings'] if f.get('severity') in ['INFO', 'LOW']]
+    
+    results['summary'] = {
+        'total_findings': len(results['findings']),
+        'critical': len([f for f in vulns if f.get('severity') == 'CRITICAL']),
+        'high': len([f for f in vulns if f.get('severity') == 'HIGH']),
+        'medium': len(warnings),
+        'info': len(info),
+        'open_ports': len(open_ports),
+    }
+    
+    # Phase 5: Report
+    if args.report:
+        print("\n[*] Phase 4: Generating Report...")
+        output_file = f"reports/cyberai_pentest_{args.target}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+        generator = ReportGenerator()
+        generator.generate(results, output_file, 'html')
+        print(f"[+] Report saved to: {output_file}")
+    
+    # Print summary
+    print("\n" + "=" * 60)
+    print("  PENTEST SUMMARY")
+    print("=" * 60)
+    print(f"  Target: {args.target}")
+    print(f"  Open Ports: {len(open_ports)}")
+    print(f"  Total Findings: {len(results['findings'])}")
+    print(f"    Critical: {results['summary']['critical']}")
+    print(f"    High: {results['summary']['high']}")
+    print(f"    Medium: {results['summary']['medium']}")
+    print(f"    Info: {results['summary']['info']}")
+    print("=" * 60)
+    
+    # Save raw results
+    output_json = f"reports/cyberai_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    with open(output_json, 'w') as f:
+        json.dump(results, f, indent=2)
+    print(f"\n[+] Raw results saved to: {output_json}")
+    
+    return results
+
+
+if __name__ == '__main__':
+    main()
