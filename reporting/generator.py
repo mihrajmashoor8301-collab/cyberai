@@ -19,7 +19,9 @@ class ReportGenerator:
             )
         
         # Ensure output directory exists
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        output_dir = os.path.dirname(os.path.abspath(output_path))
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
         
         if format == 'html':
             self._generate_html(data, output_path)
