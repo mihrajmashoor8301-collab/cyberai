@@ -48,13 +48,14 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Try to find cyberai directory
 for dir in /usr/local/share/cyberai /opt/cyberai /usr/share/cyberai; do
     if [ -d "$dir" ]; then
-        python3 "$dir/cyberai.py" "$@"
+        export PYTHONPATH="$dir/cyberai:$PYTHONPATH"
+        python3 "$dir/cyberai/cyberai.py" "$@"
         exit $?
     fi
 done
 # Fallback: use PYTHONPATH
-export PYTHONPATH="/usr/local/share/cyberai:$PYTHONPATH"
-python3 /usr/local/share/cyberai/cyberai.py "$@"
+export PYTHONPATH="/usr/local/share/cyberai/cyberai:$PYTHONPATH"
+python3 /usr/local/share/cyberai/cyberai/cyberai.py "$@"
 """
     
     with open(wrapper, 'w') as f:
@@ -96,11 +97,12 @@ def install_user():
     
     # Create wrapper script
     wrapper = os.path.join(USER_INSTALL_DIR, BINARY_NAME)
+    data_dir = os.path.expanduser('~/.local/share/cyberai')
     wrapper_content = f"""#!/bin/bash
 # CyberAI Calion - Pentest Toolkit
 # Auto-generated wrapper script
-export PYTHONPATH="{os.path.expanduser('~/.local/share/cyberai')}:$PYTHONPATH"
-python3 "{os.path.expanduser('~/.local/share/cyberai')}/cyberai.py" "$@"
+export PYTHONPATH="{data_dir}:$PYTHONPATH"
+python3 "{data_dir}/cyberai.py" "$@"
 """
     
     with open(wrapper, 'w') as f:
