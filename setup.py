@@ -16,17 +16,13 @@ with open(req_path, 'r') as f:
 
 setup(
     name='cyberai-calion',
-    version='1.0.0',
-    description='CyberAI Calion - A lean penetration testing toolkit',
+    version='1.0.3',
+    description='CyberAI Calion - A lean interactive penetration testing toolkit',
     long_description=long_description,
     long_description_content_type='text/markdown',
     author='mihraj',
-    author_email='',
-    url='https://github.com/mihrajmashoor8301/cyberai',
-    packages=find_packages(exclude=['tests', 'tests.*']),
-    package_data={
-        'cyberai': ['config/*.yaml', 'data/*'],
-    },
+    url='https://github.com/mihrajmashoor8301-collab/cyberai',
+    packages=find_packages(),
     python_requires='>=3.8',
     install_requires=install_requires,
     entry_points={
