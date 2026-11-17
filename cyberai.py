@@ -129,6 +129,8 @@ def run_network_scan():
             input("\nPress Enter to continue...")
             return
     
+    from reporting.generator import ReportGenerator
+    
     print("\n  Scan types:")
     print("  1. Quick scan (top 100 ports)")
     print("  2. Full scan (all ports)")
@@ -230,6 +232,8 @@ def run_web_audit():
     if not url_input.startswith(('http://', 'https://')):
         url_input = 'https://' + url_input
     
+    from reporting.generator import ReportGenerator
+    
     depth = input("  Crawl depth (1-5) [2]: ").strip() or '2'
     max_pages = input("  Max pages to crawl [20]: ").strip() or '20'
     
@@ -238,6 +242,7 @@ def run_web_audit():
     
     try:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from reporting.generator import ReportGenerator
         from scanners.web import WebScanner
         
         scanner = WebScanner()
@@ -313,6 +318,8 @@ def run_dirbust():
     if not url_input.startswith(('http://', 'https://')):
         url_input = 'https://' + url_input
     
+    from reporting.generator import ReportGenerator
+    
     threads = input("  Threads (1-50) [20]: ").strip() or '20'
     
     print(f"\n  [*] Starting directory bust on {url_input}")
@@ -320,6 +327,7 @@ def run_dirbust():
     
     try:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from reporting.generator import ReportGenerator
         from scanners.dirbust import DirectoryBuster
         
         buster = DirectoryBuster()
@@ -386,6 +394,7 @@ def run_cve_lookup():
     
     try:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from reporting.generator import ReportGenerator
         from scanners.cve import CVELookup
         
         lookup = CVELookup()
