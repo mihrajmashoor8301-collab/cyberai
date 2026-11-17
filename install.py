@@ -18,7 +18,7 @@ import stat
 
 # Paths
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-CYBERAI_DIR = os.path.join(SCRIPT_DIR, 'cyberai')
+CYBERAI_DIR = os.path.dirname(os.path.abspath(__file__))
 INSTALL_DIR = '/usr/local/bin'
 USER_INSTALL_DIR = os.path.expanduser('~/.local/bin')
 LINK_NAME = 'cyberai'
